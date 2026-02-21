@@ -1,0 +1,70 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDE and editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cursor / AI tooling and local-only docs (do not commit)
+.cursor/
+*.plan.md
+agent-transcripts/
+ContexMemory.md
+
+# Logs and local data
+*.log
+logs/
+.cortex/
+*.db
+*.sqlite3
+
+# ML / model checkpoints (large files)
+*.pt
+*.pth
+*.ckpt
+checkpoints/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
