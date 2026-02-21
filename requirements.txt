@@ -1,0 +1,44 @@
+# CortexOS - Cognitive Memory System
+# Backend
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Database
+psycopg2-binary>=2.9.9
+pgvector>=0.2.4
+sqlalchemy>=2.0.25
+asyncpg>=0.29.0
+
+# Redis (short-term / cache)
+redis>=5.0.1
+
+# Graph
+neo4j>=5.15.0
+
+# Embeddings (local fallback)
+sentence-transformers>=2.2.2
+
+# Search (BM25 fallback without ES)
+rank-bm25>=0.2.2
+
+# ML / MVN
+torch>=2.1.0
+numpy>=1.26.0
+
+# Consolidation
+scikit-learn>=1.4.0
+hdbscan>=0.8.33
+
+# Workers (optional)
+celery[redis]>=5.3.0
+
+# Env and config
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+
+# HTTP client for LLM
+httpx>=0.26.0
+
+# Utilities
+python-dotenv>=1.0.0
+uuid>=1.30
