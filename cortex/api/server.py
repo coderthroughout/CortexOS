@@ -42,6 +42,18 @@ app = FastAPI(
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 
+@app.middleware("http")
+async def rollback_db_on_request(request, call_next):
+    """Clear any aborted Postgres transaction so the shared connection can be reused."""
+    conn = getattr(request.app.state, "db_connection", None)
+    if conn is not None:
+        try:
+            conn.rollback()
+        except Exception:
+            pass
+    return await call_next(request)
+
+
 @app.on_event("startup")
 def startup():
     conn = get_db_connection()
