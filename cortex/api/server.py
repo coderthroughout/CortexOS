@@ -28,15 +28,21 @@ _SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "memory", "db_schem
 
 
 def _apply_schema_if_missing(conn) -> bool:
-    """If memories table does not exist, run db_schema.sql. Returns True if schema was applied."""
+    """If memories or graph_metrics table is missing, run db_schema.sql. Returns True if schema was applied."""
     cur = conn.cursor()
     try:
-        cur.execute("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'memories'")
-        if cur.fetchone() is not None:
-            return False
+        for table in ("memories", "graph_metrics"):
+            cur.execute(
+                "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = %s",
+                (table,),
+            )
+            if cur.fetchone() is None:
+                break  # missing table
+        else:
+            return False  # all tables exist
     finally:
         cur.close()
-    # Table missing: run schema
+    # At least one table missing: run full schema (all statements use IF NOT EXISTS)
     with open(_SCHEMA_PATH) as f:
         sql_text = f.read()
     lines = []
