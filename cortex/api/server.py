@@ -23,6 +23,47 @@ from cortex.memory.store import MemoryStore
 from cortex.memory.vector_index import VectorIndex
 from cortex.utils.config import DATABASE_URL, EMBEDDING_MODEL, NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
 
+# Path to schema (same as scripts/setup_rds.py)
+_SCHEMA_PATH = os.path.join(os.path.dirname(__file__), "..", "memory", "db_schema.sql")
+
+
+def _apply_schema_if_missing(conn) -> bool:
+    """If memories table does not exist, run db_schema.sql. Returns True if schema was applied."""
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'memories'")
+        if cur.fetchone() is not None:
+            return False
+    finally:
+        cur.close()
+    # Table missing: run schema
+    with open(_SCHEMA_PATH) as f:
+        sql_text = f.read()
+    lines = []
+    for line in sql_text.splitlines():
+        if "--" in line:
+            line = line[: line.index("--")].strip()
+        else:
+            line = line.strip()
+        if line:
+            lines.append(line)
+    full = " ".join(lines)
+    statements = [s.strip() + ";" for s in full.split(";") if s.strip()]
+    cur = conn.cursor()
+    try:
+        for stmt in statements:
+            try:
+                cur.execute(stmt)
+                conn.commit()
+            except Exception as e:
+                conn.rollback()
+                if "already exists" not in str(e).lower():
+                    _log.warning("Schema statement: %s", str(e)[:200])
+    finally:
+        cur.close()
+    return True
+
+
 # Ensure observability logs appear
 _log = logging.getLogger("cortexos.observability")
 if not _log.handlers:
@@ -75,6 +116,8 @@ def startup():
         else:
             conn.close()
             raise
+    if _apply_schema_if_missing(conn):
+        _log.info("CortexOS: applied db_schema.sql (memories table was missing)")
     app.state.db_connection = conn
     app.state.memory_store = MemoryStore(db_connection=conn)
     app.state.vector_index = VectorIndex(db_connection=conn)
