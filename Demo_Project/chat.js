@@ -3,11 +3,18 @@
   var STORAGE_USER_ID = 'cortex_demo_user_id';
 
   function getApiBase() {
+    var defaultUrl = (window.CORTEX_DEMO_CONFIG && window.CORTEX_DEMO_CONFIG.apiBaseUrl) || 'https://improvingly-unsharing-michelina.ngrok-free.dev';
     try {
       var s = localStorage.getItem(STORAGE_API_URL);
-      if (s) return s.trim();
+      if (s) {
+        s = s.trim();
+        if (s && window.location.protocol === 'https:' && s.indexOf('http://') === 0) {
+          return defaultUrl;
+        }
+        return s;
+      }
     } catch (e) {}
-    return (window.CORTEX_DEMO_CONFIG && window.CORTEX_DEMO_CONFIG.apiBaseUrl) || 'https://improvingly-unsharing-michelina.ngrok-free.dev';
+    return defaultUrl;
   }
 
   function getUserId() {
