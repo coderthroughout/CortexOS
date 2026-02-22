@@ -5,6 +5,8 @@ import json
 from typing import Dict, List, Optional
 from uuid import UUID
 
+import psycopg2
+
 from cortex.memory.schema import Memory, MemoryCreate, MemoryType, memory_from_row
 
 
@@ -248,7 +250,7 @@ class MemoryStore:
             cur.close()
 
     def get_graph_metrics(self, memory_ids: List[UUID]) -> Dict[UUID, dict]:
-        """Return {memory_id: {pagerank, degree}} for given ids. Missing ids omitted."""
+        """Return {memory_id: {pagerank, degree}} for given ids. Missing ids omitted. Returns {} if graph_metrics table does not exist."""
         if not memory_ids:
             return {}
         conn = self._conn_or_get()
@@ -264,11 +266,15 @@ class MemoryStore:
                 mid, pr, deg = row
                 out[UUID(mid)] = {"pagerank": float(pr or 0), "degree": int(deg or 0)}
             return out
+        except Exception as e:
+            if "graph_metrics" in str(e) or "does not exist" in str(e).lower():
+                return {}
+            raise
         finally:
             cur.close()
 
     def set_graph_metrics_bulk(self, metrics: Dict[UUID, dict]) -> None:
-        """Upsert graph_metrics. metrics: {memory_id: {pagerank, degree}}."""
+        """Upsert graph_metrics. metrics: {memory_id: {pagerank, degree}}. No-op if graph_metrics table does not exist."""
         if not metrics:
             return
         conn = self._conn_or_get()
@@ -286,5 +292,10 @@ class MemoryStore:
                     (str(mid), pr, deg),
                 )
             conn.commit()
+        except Exception as e:
+            if "graph_metrics" in str(e) or "does not exist" in str(e).lower():
+                conn.rollback()
+                return
+            raise
         finally:
             cur.close()
