@@ -1,7 +1,8 @@
 """Memory store: add, get, update, delete. Uses Postgres."""
 from __future__ import annotations
 
-from typing import List, Optional
+import json
+from typing import Dict, List, Optional
 from uuid import UUID
 
 from cortex.memory.schema import Memory, MemoryCreate, MemoryType, memory_from_row
@@ -92,6 +93,29 @@ class MemoryStore:
         finally:
             cur.close()
 
+    def get_all_memory_summaries(self, limit: int = 50000) -> List[tuple[str, str]]:
+        """Return (id, summary) for all memories, for BM25 index build. summary may be empty."""
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT id, COALESCE(summary, raw_text, '') FROM memories ORDER BY created_at DESC LIMIT %s",
+                (limit,),
+            )
+            return [(str(r[0]), str(r[1] or "")) for r in cur.fetchall()]
+        finally:
+            cur.close()
+
+    def get_user_ids(self, limit: int = 100) -> List[UUID]:
+        """Distinct user_id from memories (for background consolidation)."""
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            cur.execute("SELECT DISTINCT user_id FROM memories LIMIT %s", (limit,))
+            return [UUID(r[0]) for r in cur.fetchall() if r and r[0]]
+        finally:
+            cur.close()
+
     def get_user_memories(
         self,
         user_id: UUID,
@@ -151,5 +175,116 @@ class MemoryStore:
             cur.execute("DELETE FROM memories WHERE id = %s", (str(memory_id),))
             conn.commit()
             return cur.rowcount > 0
+        finally:
+            cur.close()
+
+    def append_feedback_log(
+        self,
+        user_id: Optional[UUID],
+        query: Optional[str],
+        retrieved_memory_ids: List[str],
+        used_memory_ids: List[str],
+        reward: float,
+    ) -> None:
+        """Append one row to feedback_logs for MVN training."""
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                INSERT INTO feedback_logs (user_id, query, retrieved_memory_ids, used_memory_ids, reward)
+                VALUES (%s, %s, %s::jsonb, %s::jsonb, %s)
+                """,
+                (
+                    str(user_id) if user_id else None,
+                    query or None,
+                    json.dumps(list(retrieved_memory_ids)),
+                    json.dumps(list(used_memory_ids)),
+                    reward,
+                ),
+            )
+            conn.commit()
+        finally:
+            cur.close()
+
+    def get_feedback_logs(self, limit: int = 5000) -> List[dict]:
+        """Read feedback_logs for MVN training. Returns list of {query, retrieved_memory_ids, used_memory_ids, reward}."""
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT query, retrieved_memory_ids, used_memory_ids, reward FROM feedback_logs ORDER BY created_at DESC LIMIT %s",
+                (limit,),
+            )
+            rows = cur.fetchall()
+            out = []
+            for r in rows:
+                query, ret, used, reward = r
+                ret_ids = ret if isinstance(ret, list) else (json.loads(ret) if isinstance(ret, str) else [])
+                used_ids = used if isinstance(used, list) else (json.loads(used) if isinstance(used, str) else [])
+                # Normalize to str so UUID() and set membership work (e.g. if driver returns UUID from JSONB)
+                ret_ids = [str(x) for x in ret_ids if x is not None]
+                used_ids = [str(x) for x in used_ids if x is not None]
+                out.append({
+                    "query": query or "",
+                    "retrieved_memory_ids": ret_ids,
+                    "used_memory_ids": used_ids,
+                    "reward": float(reward or 0.5),
+                })
+            return out
+        finally:
+            cur.close()
+
+    def count_feedback_last_24h(self) -> int:
+        """Count feedback_logs rows in the last 24 hours (for observability)."""
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                "SELECT COUNT(*) FROM feedback_logs WHERE created_at > NOW() - INTERVAL '24 hours'"
+            )
+            return int(cur.fetchone()[0] or 0)
+        finally:
+            cur.close()
+
+    def get_graph_metrics(self, memory_ids: List[UUID]) -> Dict[UUID, dict]:
+        """Return {memory_id: {pagerank, degree}} for given ids. Missing ids omitted."""
+        if not memory_ids:
+            return {}
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            placeholders = ",".join("%s" for _ in memory_ids)
+            cur.execute(
+                f"SELECT memory_id, pagerank, degree FROM graph_metrics WHERE memory_id IN ({placeholders})",
+                [str(mid) for mid in memory_ids],
+            )
+            out = {}
+            for row in cur.fetchall():
+                mid, pr, deg = row
+                out[UUID(mid)] = {"pagerank": float(pr or 0), "degree": int(deg or 0)}
+            return out
+        finally:
+            cur.close()
+
+    def set_graph_metrics_bulk(self, metrics: Dict[UUID, dict]) -> None:
+        """Upsert graph_metrics. metrics: {memory_id: {pagerank, degree}}."""
+        if not metrics:
+            return
+        conn = self._conn_or_get()
+        cur = conn.cursor()
+        try:
+            for mid, vals in metrics.items():
+                pr = float(vals.get("pagerank", 0))
+                deg = int(vals.get("degree", 0))
+                cur.execute(
+                    """
+                    INSERT INTO graph_metrics (memory_id, pagerank, degree, updated_at)
+                    VALUES (%s, %s, %s, NOW())
+                    ON CONFLICT (memory_id) DO UPDATE SET pagerank = EXCLUDED.pagerank, degree = EXCLUDED.degree, updated_at = NOW()
+                    """,
+                    (str(mid), pr, deg),
+                )
+            conn.commit()
         finally:
             cur.close()

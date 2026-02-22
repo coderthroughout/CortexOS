@@ -40,12 +40,11 @@ class VectorIndex:
         cur = conn.cursor()
         try:
             # pgvector: <=> is cosine distance; 1 - distance = similarity
-            # Or use embedding <=> %s for order
-            # query_embedding passed as list; pgvector.psycopg2 must be registered on conn
+            # Cast %s to vector so Postgres gets vector type (not numeric[])
             q = """
                 SELECT id, user_id, type, summary, raw_text, embedding, importance, emotion,
                        created_at, last_used, usage_count, mvn_score, entities, source,
-                       1 - (embedding <=> %s) AS score
+                       1 - (embedding <=> %s::vector) AS score
                 FROM memories
                 WHERE embedding IS NOT NULL
             """
@@ -56,7 +55,7 @@ class VectorIndex:
             if type_filter is not None:
                 q += " AND type = %s"
                 params.append(type_filter)
-            q += " ORDER BY embedding <=> %s LIMIT %s"
+            q += " ORDER BY embedding <=> %s::vector LIMIT %s"
             params.append(query_embedding)
             params.append(k)
             cur.execute(q, params)

@@ -62,6 +62,10 @@ logs/
 *.ckpt
 checkpoints/
 
+# Local pgvector install (Windows extract) – do not commit
+pgvector-extract/
+pgvector*.zip
+
 # Testing
 .pytest_cache/
 .coverage

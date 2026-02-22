@@ -1,6 +1,7 @@
 """Atomic memory schema: id, user_id, type, text, summary, embedding, entities, emotion, importance, timestamps, source."""
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from enum import Enum
 from typing import Any, Optional
@@ -88,6 +89,11 @@ def memory_from_row(row: Any) -> Memory:
     emb = row.get("embedding")
     if hasattr(emb, "tolist"):
         emb = emb.tolist()
+    elif isinstance(emb, str):
+        try:
+            emb = json.loads(emb)
+        except Exception:
+            emb = None
     return Memory(
         id=UUID(row["id"]) if isinstance(row["id"], str) else row["id"],
         user_id=UUID(row["user_id"]) if isinstance(row["user_id"], str) else row["user_id"],
