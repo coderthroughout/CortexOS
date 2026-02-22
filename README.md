@@ -43,6 +43,25 @@ python run.py
 - `POST /consolidate/run?user=...` – run consolidation (sleep) for user
 - `GET /health` – health check
 
+### MVN training from feedback
+
+After collecting feedback via `POST /memory/feedback` (with optional `query`, `retrieved_memory_ids`, `used_memory_ids`), train the Memory Value Network:
+
+```bash
+python scripts/train_mvn.py [--limit 5000] [--save checkpoints/mvn.pt] [--epochs 10]
+```
+
+Then set `CORTEX_MVN_CHECKPOINT=checkpoints/mvn.pt` (or your path) in `.env` and restart the API to use the trained model for ranking.
+
+### Evaluation
+
+- **Retrieval metrics (Recall@K, MRR):**  
+  `python scripts/eval_retrieval.py scripts/regression_queries.json`  
+  Use `--regression --min-recall 0.5 --min-mrr 0.3` to fail the run if below thresholds (e.g. in CI).
+- **Downstream judge (LLM):**  
+  `python scripts/eval_downstream_judge.py scripts/regression_queries.json`  
+  Requires `OPENAI_API_KEY`; scores how well answers use the retrieved memories.
+
 ## Project layout
 
 ```

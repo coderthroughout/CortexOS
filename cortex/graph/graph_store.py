@@ -1,8 +1,13 @@
 """Neo4j graph store: User, Memory, Entity; relationships MENTIONS, CAUSES, etc."""
 from __future__ import annotations
 
+import os
+import threading
 from typing import Any, Dict, List, Optional
 from uuid import UUID
+
+# Max time for traverse query so slow Neo4j (e.g. Aura) does not block retrieval
+TRAVERSE_TIMEOUT_SEC = float(os.environ.get("CORTEX_NEO4J_TRAVERSE_TIMEOUT", "2.5"))
 
 
 class GraphStore:
@@ -102,22 +107,32 @@ class GraphStore:
         return self.get_memory_ids_near_entities(entity_names, depth)
 
     def get_memory_ids_near_entities(self, entity_names: List[str], depth: int = 2) -> List[str]:
-        """Return memory ids connected to these entities within depth (BFS)."""
+        """Return memory ids connected to these entities within depth (BFS). Respects TRAVERSE_TIMEOUT_SEC."""
         if not entity_names:
             return []
         seen: set = set()
-        with self._get_driver().session() as session:
-            # Start from entities, follow MENTIONS to Memory, then MENTIONS to other entities, etc.
-            result = session.run(
-                """
-                MATCH (e:Entity) WHERE e.name IN $names
-                MATCH (m:Memory)-[:MENTIONS*1..2]-(e)
-                RETURN DISTINCT m.id AS mem_id
-                """,
-                names=[n.strip() for n in entity_names if n],
-            )
-            for r in result:
-                mid = r.get("mem_id")
-                if mid and mid not in seen:
-                    seen.add(mid)
-            return list(seen)
+        result_container: List[List[str]] = []
+
+        def _run():
+            with self._get_driver().session() as session:
+                result = session.run(
+                    """
+                    MATCH (e:Entity) WHERE e.name IN $names
+                    MATCH (m:Memory)-[:MENTIONS*1..2]-(e)
+                    RETURN DISTINCT m.id AS mem_id
+                    """,
+                    names=[n.strip() for n in entity_names if n],
+                )
+                for r in result:
+                    mid = r.get("mem_id")
+                    if mid and mid not in seen:
+                        seen.add(mid)
+                result_container.append(list(seen))
+
+        thread = threading.Thread(target=_run)
+        thread.daemon = True
+        thread.start()
+        thread.join(timeout=TRAVERSE_TIMEOUT_SEC)
+        if thread.is_alive():
+            return []  # timeout: do not block retrieval
+        return result_container[0] if result_container else []
