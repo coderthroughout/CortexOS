@@ -27,7 +27,7 @@ def status(request: Request) -> Dict[str, Any]:
         out["embedder_loaded"] = True
     except Exception:
         pass
-    # Postgres
+    # Postgres: try existing conn, then fresh connection (for debugging deployment)
     try:
         conn = getattr(request.app.state, "db_connection", None)
         if conn:
@@ -37,7 +37,17 @@ def status(request: Request) -> Dict[str, Any]:
             cur.close()
             out["postgres_ok"] = True
     except Exception:
-        pass
+        try:
+            from cortex.utils.config import DATABASE_URL
+            import psycopg2
+            fresh = psycopg2.connect(DATABASE_URL)
+            fresh.cursor().execute("SELECT 1")
+            fresh.close()
+            out["postgres_ok"] = True
+        except Exception as e:
+            out["postgres_error"] = (str(e)[:120] or type(e).__name__)
+    if not out.get("postgres_ok") and "postgres_error" not in out:
+        out["postgres_error"] = "no db_connection and CORTEX_DATABASE_URL not tried"
     # Neo4j
     try:
         gs = getattr(request.app.state, "graph_store", None)
