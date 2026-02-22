@@ -274,52 +274,55 @@ def query_memory(
     debug: bool = Query(False, description="Include timing headers"),
 ):
     """Query memories: hybrid retrieval + optional MVN + reranker. Returns ranked memories with score."""
-    store = get_store(request)
-    vector_index = get_vector_index(request)
-    user_id = UUID(user) if user else None
-    bm25 = getattr(request.app.state, "bm25_index", None)
-    graph_store = getattr(request.app.state, "graph_store", None)
-    mvn_model = getattr(request.app.state, "mvn_model", None)
-    from cortex.retrieval.retrieval_pipeline import retrieve_with_hybrid
-    timings: dict = {}
-    t0 = time.perf_counter()
-    candidates = retrieve_with_hybrid(
-        query=q,
-        user_id=user_id,
-        vector_index=vector_index,
-        store=store,
-        bm25_index=bm25,
-        graph_store=graph_store,
-        mvn_model=mvn_model,
-        k=k,
-        use_reranker=True,
-        rerank_top_k=5,
-        timings=timings,
-    )
-    total_ms = (time.perf_counter() - t0) * 1000
-    timings["total_ms"] = round(total_ms, 2)
-    log_retrieval(total_ms, k, user, timings=timings)
-    if debug:
-        response.headers["X-Query-Total-Ms"] = str(round(total_ms, 2))
-        for key in ("embed_ms", "vector_ms", "bm25_ms", "graph_ms", "build_ms", "mvn_ms", "rerank_ms"):
-            if key in timings:
-                response.headers[f"X-Query-{key.replace('_ms', '-Ms').replace('_', '-').title()}"] = str(timings[key])
-    return [
-        MemoryResponse(
-            id=str(c.memory.id),
-            user_id=str(c.memory.user_id),
-            type=c.memory.type.value,
-            summary=c.memory.summary,
-            importance=c.memory.importance,
-            created_at=c.memory.created_at.isoformat() if c.memory.created_at else None,
-            score=round((c.final_score or c.score), 4),
-            score_breakdown={
-                "mvn": c.mvn_score,
-                "similarity": round(c.similarity, 4),
-                "recency": round(c.recency or 0, 4),
-                "importance": round(c.importance, 4),
-                "graph": round(c.graph_score, 4),
-            },
+    try:
+        store = get_store(request)
+        vector_index = get_vector_index(request)
+        user_id = UUID(user) if user else None
+        bm25 = getattr(request.app.state, "bm25_index", None)
+        graph_store = getattr(request.app.state, "graph_store", None)
+        mvn_model = getattr(request.app.state, "mvn_model", None)
+        from cortex.retrieval.retrieval_pipeline import retrieve_with_hybrid
+        timings: dict = {}
+        t0 = time.perf_counter()
+        candidates = retrieve_with_hybrid(
+            query=q,
+            user_id=user_id,
+            vector_index=vector_index,
+            store=store,
+            bm25_index=bm25,
+            graph_store=graph_store,
+            mvn_model=mvn_model,
+            k=k,
+            use_reranker=True,
+            rerank_top_k=5,
+            timings=timings,
+        )
+        total_ms = (time.perf_counter() - t0) * 1000
+        timings["total_ms"] = round(total_ms, 2)
+        log_retrieval(total_ms, k, user, timings=timings)
+        if debug:
+            response.headers["X-Query-Total-Ms"] = str(round(total_ms, 2))
+            for key in ("embed_ms", "vector_ms", "bm25_ms", "graph_ms", "build_ms", "mvn_ms", "rerank_ms"):
+                if key in timings:
+                    response.headers[f"X-Query-{key.replace('_ms', '-Ms').replace('_', '-').title()}"] = str(timings[key])
+        return [
+            MemoryResponse(
+                id=str(c.memory.id),
+                user_id=str(c.memory.user_id),
+                type=c.memory.type.value,
+                summary=c.memory.summary,
+                importance=c.memory.importance,
+                created_at=c.memory.created_at.isoformat() if c.memory.created_at else None,
+                score=round((c.final_score or c.score) or 0, 4),
+                score_breakdown={
+                    "mvn": c.mvn_score,
+                    "similarity": round(c.similarity, 4) if c.similarity is not None else 0,
+                    "recency": round(c.recency or 0, 4),
+                    "importance": round(c.importance or 0, 4),
+                    "graph": round(getattr(c, "graph_score", 0), 4),
+                },
         )
         for c in candidates
-    ]
+        ]
+    except Exception as e:
+        raise HTTPException(500, detail=f"query: {str(e)[:300]}")
