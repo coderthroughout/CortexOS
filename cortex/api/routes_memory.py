@@ -97,9 +97,15 @@ def add_memory(
         source=src,
     )
     t0 = time.perf_counter()
-    embedding = embed(create.summary or create.text)
-    memory = store.add_memory(create, embedding=embedding)
-    vector_index.add(memory.id, embedding)
+    try:
+        embedding = embed(create.summary or create.text)
+    except Exception as e:
+        raise HTTPException(500, detail=f"embedding: {str(e)[:200]}")
+    try:
+        memory = store.add_memory(create, embedding=embedding)
+        vector_index.add(memory.id, embedding)
+    except Exception as e:
+        raise HTTPException(500, detail=f"store/vector: {str(e)[:300]}")
     graph_store = getattr(request.app.state, "graph_store", None)
     if graph_store:
         try:

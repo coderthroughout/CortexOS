@@ -48,6 +48,20 @@ def status(request: Request) -> Dict[str, Any]:
             out["postgres_error"] = (str(e)[:120] or type(e).__name__)
     if not out.get("postgres_ok") and "postgres_error" not in out:
         out["postgres_error"] = "no db_connection and CORTEX_DATABASE_URL not tried"
+    # Memories table exists (for deployment debugging)
+    try:
+        store = getattr(request.app.state, "memory_store", None)
+        if store and out.get("postgres_ok"):
+            conn = getattr(request.app.state, "db_connection", None) or store._conn
+            if conn:
+                cur = conn.cursor()
+                cur.execute("SELECT 1 FROM memories LIMIT 1")
+                cur.fetchone()
+                cur.close()
+                out["memories_table_ok"] = True
+    except Exception as e:
+        out["memories_table_ok"] = False
+        out["memories_table_error"] = str(e)[:150]
     # Neo4j
     try:
         gs = getattr(request.app.state, "graph_store", None)
