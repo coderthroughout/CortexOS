@@ -1,0 +1,9 @@
+{
+  "queries": [
+    {
+      "query": "What did we discuss about the project?",
+      "user_id": null,
+      "relevant_memory_ids": []
+    }
+  ]
+}

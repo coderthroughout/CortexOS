@@ -1,6 +1,13 @@
-"""Config from environment. No pydantic-settings required for minimal setup."""
+"""Config from environment. Load .env from project root before reading."""
 import os
+from pathlib import Path
 from typing import Optional
+
+# Load .env from project root (parent of cortex/)
+_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(_env_path)
 
 
 def env(key: str, default: Optional[str] = None) -> Optional[str]:

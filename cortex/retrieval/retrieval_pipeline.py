@@ -1,6 +1,7 @@
 """Retrieval pipeline: hybrid candidates -> MVN scoring -> rerank -> top-k."""
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -30,10 +31,12 @@ def retrieve_with_hybrid(
     use_intent: bool = True,
     use_reranker: bool = True,
     rerank_top_k: int = 5,
+    timings: Optional[dict] = None,
 ) -> List[Candidate]:
     """
     Run hybrid retrieval: candidates -> MVN scoring (if model) -> rerank -> return top-k.
     Ranking formula when MVN present: 0.4*MVN + 0.2*similarity + 0.15*recency + 0.15*importance + 0.1*graph.
+    If timings dict is provided, fills embed_ms, vector_ms, bm25_ms, graph_ms, build_ms, mvn_ms, rerank_ms.
     """
     raw = retrieve_candidates(
         query,
@@ -42,10 +45,24 @@ def retrieve_with_hybrid(
         store=store,
         bm25_index=bm25_index,
         graph_store=graph_store,
+        timings=timings,
     )
+    # Merge graph_metrics (pagerank, degree) from cache for graph_score in build_candidates
+    memory_ids = [m.id for m, _ in raw]
+    graph_metrics = store.get_graph_metrics(memory_ids)
+    for m, feats in raw:
+        gm = graph_metrics.get(m.id, {})
+        feats["pagerank"] = gm.get("pagerank", 0.0)
+        feats["degree"] = gm.get("degree", 0)
+    t_build = time.perf_counter()
     candidates = build_candidates(raw)
+    if timings is not None:
+        timings["build_ms"] = round((time.perf_counter() - t_build) * 1000, 2)
     # MVN scoring
+    t_mvn = time.perf_counter()
     candidates = mvn_score_candidates(query, candidates, model=mvn_model)
+    if timings is not None:
+        timings["mvn_ms"] = round((time.perf_counter() - t_mvn) * 1000, 2)
     # Combined score for sort when MVN used
     for c in candidates:
         if c.mvn_score is not None:
@@ -61,5 +78,11 @@ def retrieve_with_hybrid(
     candidates.sort(key=lambda x: x.final_score if x.final_score is not None else x.score, reverse=True)
     top_20 = candidates[:20]
     if use_reranker and top_20:
-        return rerank(top_20, top_k=min(rerank_top_k, k))
+        t_rerank = time.perf_counter()
+        out = rerank(top_20, top_k=min(rerank_top_k, k))
+        if timings is not None:
+            timings["rerank_ms"] = round((time.perf_counter() - t_rerank) * 1000, 2)
+        return out
+    if timings is not None:
+        timings["rerank_ms"] = 0
     return candidates[:k]

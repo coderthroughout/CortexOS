@@ -8,12 +8,22 @@ from typing import Any, Optional
 logger = logging.getLogger("cortexos.observability")
 
 
-def log_retrieval(latency_ms: float, k: int, user_id: Optional[str] = None) -> None:
+def log_retrieval(
+    latency_ms: float,
+    k: int,
+    user_id: Optional[str] = None,
+    timings: Optional[dict] = None,
+) -> None:
     logger.info("retrieval latency_ms=%.2f k=%s user_id=%s", latency_ms, k, user_id)
+    if timings:
+        logger.info("retrieval_timings %s", timings)
 
 
-def log_memory_add(memory_id: str, user_id: str) -> None:
-    logger.info("memory_add memory_id=%s user_id=%s", memory_id, user_id)
+def log_memory_add(memory_id: str, user_id: str, latency_ms: Optional[float] = None) -> None:
+    if latency_ms is not None:
+        logger.info("memory_add memory_id=%s user_id=%s latency_ms=%.2f", memory_id, user_id, latency_ms)
+    else:
+        logger.info("memory_add memory_id=%s user_id=%s", memory_id, user_id)
 
 
 def log_feedback(reward: float, used_count: int) -> None:
