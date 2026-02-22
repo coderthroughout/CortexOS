@@ -72,3 +72,7 @@ pgvector*.zip
 htmlcov/
 .tox/
 .nox/
+scripts/test_add_body.json
+
+# One-off local scripts (not for repo)
+install_pgvector.ps1

@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CortexOS – Test your memory layer</title>
+  <link rel="stylesheet" href="chat.css" />
+</head>
+<body>
+  <div class="wrap">
+    <header class="header">
+      <h1 class="title">CortexOS</h1>
+      <a href="playground.html" class="link">API Playground</a>
+    </header>
+
+    <section class="config">
+      <div class="config-row">
+        <label class="config-label">
+          API URL
+          <input type="text" id="apiUrl" class="config-input" placeholder="http://3.87.235.87:8000" />
+        </label>
+        <label class="config-label">
+          User ID (UUID)
+          <input type="text" id="userId" class="config-input" placeholder="550e8400-e29b-41d4-a716-446655440000" />
+        </label>
+        <div class="config-actions">
+          <button type="button" id="saveConfig" class="btn btn-primary">Save</button>
+          <button type="button" id="checkConnection" class="btn btn-secondary">Check connection</button>
+          <span id="connectionStatus" class="status"></span>
+        </div>
+      </div>
+    </section>
+
+    <main class="main">
+      <div id="messageList" class="messages"></div>
+      <div id="emptyState" class="empty">
+        <p class="empty-text">Send a message to store and retrieve memories.</p>
+      </div>
+      <div class="input-row">
+        <textarea id="chatInput" class="input" rows="2" placeholder="Type a message..."></textarea>
+        <button type="button" id="sendBtn" class="btn btn-primary btn-send">Send</button>
+      </div>
+    </main>
+
+    <section class="tools">
+      <h2 class="tools-title">Timeline &amp; Graph</h2>
+      <div class="tools-row">
+        <button type="button" id="btnTimeline" class="btn btn-secondary">Load timeline</button>
+        <div class="tools-result" id="timelineResult"></div>
+      </div>
+      <div class="tools-row">
+        <input type="text" id="graphEntity" class="config-input input-inline" placeholder="Entity name (e.g. beta)" />
+        <button type="button" id="btnGraph" class="btn btn-secondary">Load graph</button>
+        <div class="tools-result" id="graphResult"></div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <a href="playground.html">API Playground</a> for add, ingest, query, feedback.
+    </footer>
+  </div>
+  <script src="config.js"></script>
+  <script src="chat.js"></script>
+</body>
+</html>

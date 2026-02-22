@@ -33,3 +33,25 @@ CREATE INDEX IF NOT EXISTS idx_memories_embedding ON memories
 
 -- Optional: entity index for filtering (GIN on array)
 CREATE INDEX IF NOT EXISTS idx_memories_entities ON memories USING GIN(entities);
+
+-- Feedback log for MVN training (query, retrieved, used, reward)
+CREATE TABLE IF NOT EXISTS feedback_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    query TEXT,
+    retrieved_memory_ids JSONB DEFAULT '[]',
+    used_memory_ids JSONB DEFAULT '[]',
+    reward FLOAT DEFAULT 0.5 CHECK (reward >= 0 AND reward <= 1),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_feedback_logs_created_at ON feedback_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_feedback_logs_user_id ON feedback_logs(user_id);
+
+-- Graph metrics cache (PageRank, degree) for reranker; populated by background job
+CREATE TABLE IF NOT EXISTS graph_metrics (
+    memory_id UUID PRIMARY KEY REFERENCES memories(id) ON DELETE CASCADE,
+    pagerank FLOAT DEFAULT 0,
+    degree INT DEFAULT 0,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_graph_metrics_updated_at ON graph_metrics(updated_at);

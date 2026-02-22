@@ -2,6 +2,10 @@
 
 Memory system for AI agents: extraction, graph, hybrid retrieval, MVN ranking, consolidation, and feedback.
 
+**Demo (Vercel):** The `Demo_Project/` folder is a static frontend (chat + API playground) you can deploy to Vercel with **Root Directory** = `Demo_Project`. See `Demo_Project/README.md` and `Demo_Project/DEPLOY_VERCEL.md`.
+
+**More docs:** `docs/` (architecture, setup, testing, deployment).
+
 ## Setup
 
 ### 1. Python

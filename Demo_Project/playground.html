@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CortexOS Demo – API Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="header-top" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+        <h1 class="logo">CortexOS</h1>
+        <a href="chat.html" class="nav-link" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:600;">← Chat</a>
+      </div>
+      <p class="tagline">API playground – raw add, ingest, query, timeline, graph, feedback</p>
+      <div class="config-bar">
+        <label>
+          <span>API URL</span>
+          <input type="text" id="apiUrl" placeholder="http://localhost:8000" />
+        </label>
+        <label>
+          <span>User ID</span>
+          <input type="text" id="userId" placeholder="UUID" />
+        </label>
+        <button type="button" id="saveConfig" class="btn btn-ghost">Save</button>
+      </div>
+    </header>
+
+    <section class="section status-section">
+      <h2>Status</h2>
+      <div class="card">
+        <div class="status-row">
+          <button type="button" id="checkHealth" class="btn btn-primary">Check health</button>
+          <button type="button" id="checkStatus" class="btn btn-ghost">Component status</button>
+        </div>
+        <pre id="statusOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Add memory</h2>
+      <div class="card">
+        <label>
+          <span>Summary</span>
+          <textarea id="addSummary" rows="2" placeholder="e.g. We launched the beta last week"></textarea>
+        </label>
+        <label>
+          <span>Entities (comma-separated)</span>
+          <input type="text" id="addEntities" placeholder="beta, team" />
+        </label>
+        <label>
+          <span>Importance (0–1)</span>
+          <input type="number" id="addImportance" min="0" max="1" step="0.1" value="0.8" />
+        </label>
+        <label>
+          <span>Type</span>
+          <select id="addType">
+            <option value="episodic">episodic</option>
+            <option value="semantic">semantic</option>
+            <option value="procedural">procedural</option>
+          </select>
+        </label>
+        <button type="button" id="addMemory" class="btn btn-primary">Add memory</button>
+        <pre id="addOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Ingest (raw text → memories)</h2>
+      <div class="card">
+        <p class="hint">Send raw content; CortexOS extracts memories via LLM and stores them.</p>
+        <label>
+          <span>Content</span>
+          <textarea id="ingestContent" rows="4" placeholder="e.g. I've been stressed about funding. We're building Omium. Met with Sarah on Tuesday."></textarea>
+        </label>
+        <button type="button" id="ingest" class="btn btn-primary">Ingest</button>
+        <pre id="ingestOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Query / Search</h2>
+      <div class="card">
+        <label>
+          <span>Query</span>
+          <input type="text" id="queryQ" placeholder="e.g. launch beta, stress, funding" />
+        </label>
+        <label>
+          <span>Top K</span>
+          <input type="number" id="queryK" min="1" max="100" value="5" />
+        </label>
+        <button type="button" id="query" class="btn btn-primary">Search</button>
+        <pre id="queryOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Timeline</h2>
+      <div class="card">
+        <p class="hint">Memories grouped by time period.</p>
+        <button type="button" id="timeline" class="btn btn-primary">Load timeline</button>
+        <pre id="timelineOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Graph (by entity)</h2>
+      <div class="card">
+        <label>
+          <span>Entity (node)</span>
+          <input type="text" id="graphNode" placeholder="e.g. beta, stress" />
+        </label>
+        <label>
+          <span>Depth</span>
+          <input type="number" id="graphDepth" min="1" max="5" value="2" />
+        </label>
+        <button type="button" id="graph" class="btn btn-primary">Traverse</button>
+        <pre id="graphOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Update or delete memory</h2>
+      <div class="card">
+        <label>
+          <span>Memory ID (UUID)</span>
+          <input type="text" id="memoryId" placeholder="uuid from add/query response" />
+        </label>
+        <label>
+          <span>New summary (optional, for PATCH)</span>
+          <input type="text" id="patchSummary" placeholder="Leave blank to keep" />
+        </label>
+        <label>
+          <span>New importance (optional, 0–1)</span>
+          <input type="number" id="patchImportance" min="0" max="1" step="0.1" placeholder="Leave blank" />
+        </label>
+        <div class="status-row">
+          <button type="button" id="patchMemory" class="btn btn-ghost">Update (PATCH)</button>
+          <button type="button" id="deleteMemory" class="btn btn-secondary">Delete</button>
+        </div>
+        <pre id="memoryCrudOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Feedback</h2>
+      <div class="card">
+        <p class="hint">Record which memories were used and reward (for MVN training).</p>
+        <label>
+          <span>Used memory IDs (comma-separated)</span>
+          <input type="text" id="feedbackUsed" placeholder="uuid1, uuid2" />
+        </label>
+        <label>
+          <span>Retrieved memory IDs (optional, comma-separated)</span>
+          <input type="text" id="feedbackRetrieved" placeholder="uuid1, uuid2, ..." />
+        </label>
+        <label>
+          <span>Reward (0–1)</span>
+          <input type="number" id="feedbackReward" min="0" max="1" step="0.1" value="0.9" />
+        </label>
+        <button type="button" id="feedback" class="btn btn-primary">Send feedback</button>
+        <pre id="feedbackOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>Consolidate</h2>
+      <div class="card">
+        <p class="hint">Run sleep worker: cluster episodic memories into semantic ones and decay low-value memories.</p>
+        <button type="button" id="consolidate" class="btn btn-secondary">Run consolidation</button>
+        <pre id="consolidateOutput" class="output"></pre>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>CortexOS demo – <a href="chat.html">Chat showcase</a> | Configure API URL above.</p>
+    </footer>
+  </div>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
