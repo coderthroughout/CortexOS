@@ -7,7 +7,7 @@
       var s = localStorage.getItem(STORAGE_API_URL);
       if (s) return s.trim();
     } catch (e) {}
-    return (window.CORTEX_DEMO_CONFIG && window.CORTEX_DEMO_CONFIG.apiBaseUrl) || 'http://3.87.235.87:8000';
+    return (window.CORTEX_DEMO_CONFIG && window.CORTEX_DEMO_CONFIG.apiBaseUrl) || 'https://improvingly-unsharing-michelina.ngrok-free.dev';
   }
 
   function getUserId() {

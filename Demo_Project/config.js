@@ -5,7 +5,7 @@
  */
 window.CORTEX_DEMO_CONFIG = {
   /** Base URL of the CortexOS API (no trailing slash). Same host as this demo on EC2. */
-  apiBaseUrl: window.CORTEX_API_URL || 'http://3.87.235.87:8000',
+  apiBaseUrl: window.CORTEX_API_URL || 'https://improvingly-unsharing-michelina.ngrok-free.dev',
   /** Default user ID for demo (UUID). */
   defaultUserId: '550e8400-e29b-41d4-a716-446655440000',
 };

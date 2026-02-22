@@ -49,6 +49,16 @@ body {
   margin-bottom: 24px;
 }
 
+.config-hint {
+  font-size: 13px;
+  color: #6b7280;
+  margin: 0 0 12px 0;
+  padding: 8px 10px;
+  background: #fef3c7;
+  border-radius: 6px;
+  border: 1px solid #fcd34d;
+}
+
 .config-row {
   display: flex;
   flex-wrap: wrap;
