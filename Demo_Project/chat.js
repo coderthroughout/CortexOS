@@ -74,7 +74,7 @@
     bubble.textContent = text;
     div.appendChild(bubble);
 
-    if (options && options.memories && options.memories.length > 0) {
+    if (options && options.memories && Array.isArray(options.memories) && options.memories.length > 0) {
       var card = document.createElement('div');
       card.className = 'memories';
       card.innerHTML = '<div class="memories-title">Retrieved by CortexOS</div>';
@@ -124,11 +124,19 @@
     return div;
   }
 
+  function ensureArray(x) {
+    if (Array.isArray(x)) return x;
+    if (x && typeof x === 'object' && Array.isArray(x.results)) return x.results;
+    if (x && typeof x === 'object' && Array.isArray(x.data)) return x.data;
+    return [];
+  }
+
   function buildReply(memories, userText) {
-    if (!memories || memories.length === 0) {
+    var list = ensureArray(memories);
+    if (list.length === 0) {
       return "I don't have any relevant memories yet. Tell me more and I'll remember it.";
     }
-    var parts = memories.slice(0, 3).map(function (m) { return m.summary || ''; });
+    var parts = list.slice(0, 3).map(function (m) { return (m && m.summary) || ''; });
     var refs = parts.map(function (p, i) { return '[' + (i + 1) + '] ' + p; }).join(' ');
     return 'Based on what I remember: ' + refs + '. What would you like to explore next?';
   }
@@ -148,14 +156,15 @@
       })
       .then(function (memories) {
         if (loadingEl && loadingEl.parentNode) loadingEl.remove();
-        var reply = buildReply(memories, text);
-        if (ingestFailed && (!memories || memories.length === 0)) {
+        var list = ensureArray(memories);
+        var reply = buildReply(list, text);
+        if (ingestFailed && list.length === 0) {
           reply = "Ingest didn't run (e.g. no OPENAI_API_KEY on server). " + reply;
         } else if (ingestFailed) {
           reply = "(New message wasn't extracted; showing existing memories.) " + reply;
         }
-        var ids = (memories || []).map(function (m) { return m.id; }).filter(Boolean);
-        addMessage('assistant', reply, { memories: memories || [], memoryIds: ids });
+        var ids = list.map(function (m) { return m && m.id; }).filter(Boolean);
+        addMessage('assistant', reply, { memories: list, memoryIds: ids });
       })
       .catch(function (e) {
         if (loadingEl && loadingEl.parentNode) loadingEl.remove();
