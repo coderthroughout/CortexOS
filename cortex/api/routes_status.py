@@ -19,8 +19,7 @@ def status(request: Request) -> Dict[str, Any]:
         "postgres_ok": False,
         "neo4j_ok": False,
         "mvn_loaded": False,
-    }
-    # Embedder
+    }    # Embedder
     try:
         from cortex.utils.embeddings import embed
         embed("ok")
