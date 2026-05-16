@@ -80,8 +80,8 @@ def add_memory(
         raise HTTPException(422, "invalid user_id")
     try:
         mem_type = MemoryType(body.type)
-    except ValueError:
-        mem_type = MemoryType.EPISODIC
+    except (TypeError, ValueError):
+        raise HTTPException(422, "invalid memory type")
     try:
         src = MemorySource(body.source)
     except ValueError:
