@@ -69,14 +69,11 @@ def status(request: Request) -> Dict[str, Any]:
             with gs._get_driver().session() as session:
                 session.run("RETURN 1")
             out["neo4j_ok"] = True
-    except Exception:
-        pass
-    # MVN
-    out["mvn_loaded"] = getattr(request.app.state, "mvn_model", None) is not None
-    # Observability: feedback volume and last MVN training
-    try:
-        store = getattr(request.app.state, "memory_store", None)
-        if store:
+    store = getattr(request.app.state, "memory_store", None)
+    if store is None:
+        out["feedback_events_last_24h"] = None
+    else:
+        out["feedback_events_last_24h"] = store.count_feedback_last_24h()        if store:
             out["feedback_events_last_24h"] = store.count_feedback_last_24h()
     except Exception:
         out["feedback_events_last_24h"] = None
